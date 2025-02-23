@@ -49,6 +49,12 @@ class EmployeeCreate(BaseModel):
     department: str
     salary: int
 
+#Use Pydantic model for request body
+class EmployeeUpdate(BaseModel):
+    name: str | None = None
+    department: str | None = None
+    salary: int | None = None
+
 
 # Define Employee model (Ensure this matches your MySQL table name)
 class Employee(Base):
@@ -88,7 +94,7 @@ def get_employee(emp_id: int, db: Session = Depends(get_db)):
 # CREATE: Add a new employee
 @app.post("/employee", status_code=201)
 #def add_employee(name: str, department: str, salary: int, db: Session = Depends(get_db)):
-def add_employee(employee: EmployeeCreate = Body(...), db: Session = Depends(get_db)):
+def add_employee(employee: EmployeeCreate = Body(...), db: Session = Depends(get_db)):  # this line to recognize Json
     #new_employee = Employee(name=name, department=department, salary=salary)
     new_employee = Employee(name=employee.name, department=employee.department, salary=employee.salary)
     db.add(new_employee)
@@ -98,17 +104,23 @@ def add_employee(employee: EmployeeCreate = Body(...), db: Session = Depends(get
 
 # UPDATE: Update an existing employee
 @app.put("/employee/{emp_id}")
-def update_employee(emp_id: int, name: str = None, department: str = None, salary: int = None, db: Session = Depends(get_db)):
+#def update_employee(emp_id: int, name: str = None, department: str = None, salary: int = None, db: Session = Depends(get_db)):
+def update_employee(emp_id: int, employee_update: EmployeeUpdate, db: Session = Depends(get_db)):
     employee = db.query(Employee).filter(Employee.id == emp_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
 
     # Update fields only if new values are provided
-    if name: employee.name = name
-    if department: employee.department = department
-    if salary: employee.salary = salary
+    if employee_update.name is not None:
+        employee.name = employee_update.name
+    if employee_update.department is not None:
+        employee.department = employee_update.department
+    if employee_update.salary is not None:
+        employee.salary = employee_update.salary
 
     db.commit()
+    db.refresh(employee)  # Refresh the object from the DB to reflect the changes
+    
     return {"message": "Employee updated successfully!"}
 
 # DELETE: Remove an employee
